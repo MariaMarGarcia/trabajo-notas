@@ -1,0 +1,24 @@
+/* Estructura principal y colores */
+.formulario {
+    background: #f5f5f5; /* Fondo gris claro */
+    border-radius: 8px; /* Bordes redondeados */
+}
+
+/* Campos de formulario */
+.campo input, .campo textarea {
+    border: 1px solid #ddd; /* Borde gris */
+}
+
+/* Botones principales */
+button {
+    background: #4CAF50; /* Verde */
+}
+
+/* Botones de acciones */
+.acciones button:first-child {
+    background: #007bff; /* Azul */
+}
+
+.acciones button:last-child {
+    background: #dc3545; /* Rojo */
+}

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Aplicación de Notas</title>
+    <style>
+        /* ESTILOS CSS */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .formulario {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .campo {
+            margin-bottom: 15px;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        .error {
+            color: red;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .acciones button {
+            padding: 5px 10px;
+            margin: 0 3px;
+            background: #007bff;
+        }
+
+        .acciones button:last-child {
+            background: #dc3545;
+        }
+
+        .btn-paginacion {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .encabezado-notas {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+
+        .encabezado-notas button {
+            background: #dc3545;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- SECCIÓN DEL FORMULARIO -->
+    <div class="formulario">
+        <h1>Aplicación de Notas</h1>
+
+        <div class="campo">
+            <input type="text" id="titulo" placeholder="Título de la nota">
+        </div>
+
+        <div class="campo">
+            <textarea id="descripcion" placeholder="Descripción de la nota"></textarea>
+        </div>
+
+        <div class="campo">
+            <select id="categoria">
+                <option value="Trabajo">Trabajo</option>
+                <option value="Personal">Personal</option>
+                <option value="Estudio">Estudio</option>
+            </select>
+        </div>
+
+        <button onclick="manejarNota()">Agregar Nota</button>
+        <div id="mensajeError" class="error"></div>
+    </div>
+
+    <!-- SECCIÓN DE NOTAS -->
+    <div class="encabezado-notas">
+        <h2>Notas</h2>
+        <button onclick="eliminarTodasNotas()" class="btn-eliminar-todas">
+            🗑️ Eliminar Todas
+        </button>
+    </div>
+    <table id="tablaNotas">
+        <thead>
+            <tr>
+                <th>Título</th>
+                <th>Descripción</th>
+                <th>Categoría</th>
+                <th>Fecha</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="cuerpoTabla">
+        </tbody>
+    </table>
+    <div class="btn-paginacion">
+        <button class="btn-paginas" type="button">Anterior</button>
+        <button class="btn-paginas" type="button">Siguiente</button>
+    </Div>
+    <script>
+        // FUNCIONES JAVASCRIPT
+        let editMode = false;
+        let currentId = null;
+
+        // Variables de paginación
+        let currentPage = 1;
+        const notesPerPage = 2;
+
+        // Obtener notas de LocalStorage
+        function obtenerNotas() {
+            return JSON.parse(localStorage.getItem('notas')) || [];
+        }
+
+        // Guardar notas en LocalStorage
+        function guardarNotas(notas) {
+            localStorage.setItem('notas', JSON.stringify(notas));
+        }
+
+        // Mostrar notas en la tabla
+        function renderNotas() {
+            const tbody = document.getElementById('cuerpoTabla');
+            tbody.innerHTML = '';
+
+            const allNotes = obtenerNotas();
+            const startIndex = (currentPage - 1) * notesPerPage;
+            const endIndex = startIndex + notesPerPage;
+            const paginatedNotes = allNotes.slice(startIndex, endIndex);
+
+            paginatedNotes.forEach(nota => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${nota.titulo}</td>
+                        <td>${nota.descripcion}</td>
+                        <td>${nota.categoria}</td>
+                        <td>${nota.fecha}</td>
+                        <td class="acciones">
+                            <button onclick="editarNota(${nota.id})">✏️ Editar</button>
+                            <button onclick="eliminarNota(${nota.id})">🗑️ Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            updatePaginationControls(allNotes.length);
+        }
+
+
+        // Actualizar controles de paginación
+        function updatePaginationControls(totalNotes) {
+            const totalPages = Math.ceil(totalNotes / notesPerPage);
+            const prevButton = document.querySelector('.btn-paginas:first-child');
+            const nextButton = document.querySelector('.btn-paginas:last-child');
+
+            prevButton.disabled = currentPage === 1;
+            nextButton.disabled = currentPage >= totalPages;
+        }
+
+        // Funciones para manejar los botones de paginación
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderNotas();
+            }
+        }
+
+        function nextPage() {
+            const totalNotes = obtenerNotas().length;
+            const totalPages = Math.ceil(totalNotes / notesPerPage);
+
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderNotas();
+            }
+        }
+
+        // Manejar agregar/editar notas
+        function manejarNota() {
+            const titulo = document.getElementById('titulo').value;
+            const descripcion = document.getElementById('descripcion').value;
+            const categoria = document.getElementById('categoria').value;
+
+            if (!titulo || !descripcion) {
+                document.getElementById('mensajeError').textContent = 'Error: Título y Descripción son obligatorios';
+                return;
+            }
+
+            const notas = obtenerNotas();
+
+            if (editMode) {
+                // Modo edición
+                const index = notas.findIndex(n => n.id === currentId);
+                notas[index] = {
+                    ...notas[index],
+                    titulo,
+                    descripcion,
+                    categoria,
+                    fecha: new Date().toLocaleDateString()
+                };
+            } else {
+                // Modo creación
+                notas.push({
+                    id: Date.now(),
+                    titulo,
+                    descripcion,
+                    categoria,
+                    fecha: new Date().toLocaleDateString()
+                });
+            }
+
+            guardarNotas(notas);
+            resetForm();
+            renderNotas();
+        }
+
+        // Editar nota
+        function editarNota(id) {
+            const nota = obtenerNotas().find(n => n.id === id);
+            document.getElementById('titulo').value = nota.titulo;
+            document.getElementById('descripcion').value = nota.descripcion;
+            document.getElementById('categoria').value = nota.categoria;
+
+            editMode = true;
+            currentId = id;
+            document.querySelector('button').textContent = 'Guardar Cambios';
+        }
+
+        // Eliminar nota
+        function eliminarNota(id) {
+            if (!confirm('¿Eliminar esta nota permanentemente?')) return;
+
+            const nuevasNotas = obtenerNotas().filter(n => n.id !== id);
+            guardarNotas(nuevasNotas);
+
+            // Resetear a la primera página si la página actual queda vacía
+            const totalNotes = nuevasNotas.length;
+            const currentPageStart = (currentPage - 1) * notesPerPage;
+            if (currentPageStart >= totalNotes) {
+                currentPage = Math.max(1, currentPage - 1);
+            }
+
+            renderNotas();
+        }
+
+        // Resetear formulario
+        function resetForm() {
+            document.getElementById('titulo').value = '';
+            document.getElementById('descripcion').value = '';
+            document.getElementById('mensajeError').textContent = '';
+            editMode = false;
+            currentId = null;
+            document.querySelector('button').textContent = 'Agregar Nota';
+        }
+
+        // Añadir esta función al código existente
+        function eliminarTodasNotas() {
+            if (confirm('¿Estás seguro de eliminar TODAS las notas permanentemente?')) {
+                localStorage.removeItem('notas');
+                currentPage = 1; // Reiniciar paginación
+                renderNotas(); // Actualizar tabla
+            }
+        }
+
+        // Inicializar
+        // Modificar el evento DOMContentLoaded y añadir event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            renderNotas();
+
+            // Asignar eventos a los botones
+            document.querySelector('.btn-paginas:first-child').addEventListener('click', prevPage);
+            document.querySelector('.btn-paginas:last-child').addEventListener('click', nextPage);
+        });
+    </script>
+</body>
+
+</html>
